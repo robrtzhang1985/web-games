@@ -68,7 +68,10 @@
     background:linear-gradient(165deg,#2b1c3a,#191024);border:2px solid #463254;transition:transform .12s,border-color .12s}
   .card:hover{transform:translateY(-3px)}
   .card.selP1{border-color:#ffb84d;box-shadow:0 0 18px rgba(255,170,60,.45)}
-  .card.used{opacity:.35;pointer-events:none}
+  .card.used{opacity:.45}
+  .pickNo{position:absolute;top:5px;right:5px;min-width:22px;height:22px;border-radius:11px;background:#ffb84d;color:#3a2000;font-weight:900;font-size:13px;display:none;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.45);z-index:2;padding:0 5px}
+  .card.selP1 .pickNo{display:flex}
+  .card.selP1 .pickNo.assist{background:#c85ad0;color:#fff}
   .card canvas{width:100%;height:118px;display:block}
   .cname{font-size:19px;font-weight:900;letter-spacing:3px;margin-top:4px}
   .ctitle{font-size:10.5px;color:#b59b7e;letter-spacing:2px}
@@ -2382,7 +2385,7 @@ function drawPortrait(cnv,ci,shadow){
 }
 function cardHTML(ci){
   return '<div class="card" data-ci="'+ci+'" id="card'+ci+'">'+
-    '<canvas width="134" height="118" id="pc'+ci+'"></canvas>'+
+    '<div class="pickNo"></div><canvas width="134" height="118" id="pc'+ci+'"></canvas>'+
     '<div class="cname" style="color:'+CHARS[ci].accent+'">'+CHARS[ci].name+'</div>'+
     '<div class="ctitle">'+CHARS[ci].title+'</div>'+
     '<div class="stat"><span>力量</span><i><b style="width:'+(ci===0?92:ci===1?70:60)+'%"></b></i></div>'+
@@ -2434,8 +2437,13 @@ function showScreen(s){
       document.getElementById('slotBox').innerHTML=slotsHTML(cur);
       for(var ci=0;ci<CHARS.length;ci++){
         var cd=document.getElementById('card'+ci);
-        cd.classList.toggle('used',cur.includes(ci));
-        cd.classList.toggle('selP1',cur.includes(ci));
+        var pIdx=cur.indexOf(ci);
+        cd.classList.toggle('selP1',pIdx>=0);
+        var pn=cd.querySelector('.pickNo');
+        if(pn){
+          if(pIdx>=0){pn.textContent=pIdx<3?(pIdx+1):'援';pn.classList.toggle('assist',pIdx===3);}
+          else{pn.textContent='';}
+        }
       }
       goBtn.disabled=cur.length<3;
     }
