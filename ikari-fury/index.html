@@ -166,6 +166,54 @@ function noise(d,v,delay,hp){
     s.connect(f);f.connect(g);g.connect(a.destination);s.start(t);
   }catch(e){}
 }
+
+/* ==================== 动感BGM 引擎（16步音序器） ==================== */
+var MUS={track:null,step:0,timer:null,nextT:0,tempo:150,hype:false};
+var MUSLIB={
+  title:{tempo:118,
+    bass:[82.4,0,0,0,98,0,0,0,110,0,0,0,98,0,0,0],
+    lead:[329.6,0,392,0,493.9,0,440,0,392,0,329.6,0,293.7,0,246.9,0],
+    kick:[1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],snr:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],hat:2},
+  fight1:{tempo:158,
+    bass:[82.4,82.4,0,82.4,98,0,82.4,0,110,110,0,110,98,0,123.5,0],
+    lead:[659.3,0,587.3,493.9,0,493.9,587.3,0,659.3,0,784,0,659.3,587.3,0,493.9],
+    kick:[1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0],snr:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],hat:1},
+  fight2:{tempo:150,
+    bass:[110,0,110,110,0,130.8,0,110,87.3,0,87.3,87.3,0,98,0,110],
+    lead:[440,523.3,0,659.3,0,523.3,440,0,349.2,440,0,523.3,0,587.3,659.3,0],
+    kick:[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],snr:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],hat:2},
+  boss:{tempo:172,
+    bass:[55,55,55,55,65.4,65.4,55,55,49,49,49,49,58.3,58.3,61.7,61.7],
+    lead:[440,0,415.3,0,440,0,523.3,0,493.9,0,466.2,0,440,0,415.3,392],
+    kick:[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1],snr:[0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,1],hat:1}
+};
+function playMusic(name){
+  if(MUS.track===name)return;
+  MUS.track=name;MUS.step=0;MUS.hype=false;MUS.nextT=0;
+  var def=name?MUSLIB[name]:null;
+  MUS.tempo=def?def.tempo:150;
+  if(!MUS.timer)MUS.timer=setInterval(musSchedule,40);
+  try{ac();}catch(e){}
+}
+function musSchedule(){
+  try{
+    var a=AC;
+    if(!a||!MUS.track||!soundOn||a.state!=='running')return;
+    var def=MUSLIB[MUS.track];
+    if(!def)return;
+    var spb=60/(MUS.tempo+(MUS.hype?14:0))/4;
+    if(MUS.nextT<a.currentTime)MUS.nextT=a.currentTime+.06;
+    while(MUS.nextT<a.currentTime+.2){
+      var s=MUS.step%16,d=Math.max(0,MUS.nextT-a.currentTime);
+      var bf=def.bass[s];if(bf)tone(bf,spb*1.7,'sawtooth',.05,d);
+      var lf=def.lead[s];if(lf){tone(lf,spb*1.2,'square',.026,d);if(MUS.hype)tone(lf*2,spb*.9,'square',.014,d);}
+      if(def.kick[s])tone(130,spb*1.5,'sine',.14,d,42);
+      if(def.snr[s])noise(spb*1.3,.06,d,1600);
+      if(def.hat===1||s%2===0)noise(.035,.018,d,6200);
+      MUS.step++;MUS.nextT+=spb;
+    }
+  }catch(e){}
+}
 var sfx={
   whoosh:function(){noise(.09,.05,0,1600);},
   hitL:function(){tone(240,.08,'square',.12,0,120);noise(.06,.1,0,1200);},
@@ -1173,6 +1221,7 @@ World.prototype.step=function(){
   if(this.frame%46===0)[this.p1,this.p2].forEach(function(f){
     if(f&&f.broken&&f.hp>0)world.fx.parts.push({x:f.x+rnd(-14,14),y:f.y-f.def.height*rnd(.3,.7),vx:rnd(-1,1),vy:rnd(-1.5,0),life:24,max:24,color:'#b8a890',r:2});
   });
+  if(this.frame%30===0)this.p1&&this.p2&&(MUS.hype=(this.p1.hp<this.p1.hpMax*.32||this.p2.hp<this.p2.hpMax*.32));
   if(this.announceT>0)this.announceT--;
   if(this.comboT>0)this.comboT--;
   if(this.shakeT>0){this.shakeT--;if(this.shakeT===0)this.shakeMag=0;}
@@ -1335,6 +1384,7 @@ function newTeamMatch(list1,list2,opts){
     opts:opts,p1:null,p2:null,winner:-1,switchSide:-1};
   game.screen='fight';
   document.body.classList.add('fighting');
+  playMusic(list2.some(function(e){return e.shadow;})?'boss':(Math.random()<.5?'fight1':'fight2'));
   spawnActive();
   syncUI();
 }
@@ -2403,6 +2453,8 @@ function slotsHTML(sel){
   return out+'</div>';
 }
 function showScreen(s){
+  if(s==='title')playMusic('title');
+  if(s==='result'||s==='how')playMusic(s==='how'?'title':null);
   game.screen=s;syncUI();
   if(s==='title'){
     var cleared=false;try{cleared=!!localStorage.getItem('ifury_clear');}catch(e){}
@@ -2611,6 +2663,7 @@ window.__fury={
   game:game,chars:CHARS,assets:function(){return assetsReady;},
   ladder:function(){return ladder;},
   pick:function(){return pick1.slice();},
+  mus:function(){return {track:MUS.track,step:MUS.step,hype:MUS.hype,tempo:MUS.tempo};},
   start:function(o){
     o=o||{};
     var t1=(o.t1||[0,1,2,3]).map(function(ci){return {ci:ci,shadow:!!o.shadow1};});
